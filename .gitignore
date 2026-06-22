@@ -41,8 +41,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# Uploads (user-generated files, not tracked)
-backend/uploads/
+# Uploads (user-generated files, not tracked, but keeping directories)
+backend/uploads/**/*
+!backend/uploads/**/.gitkeep
 
 # Prisma cache
 backend/prisma/.env

@@ -13,6 +13,9 @@ const interviewRoutes = require('./routes/interviewRoutes');
 const resumeRoutes = require('./routes/resumeRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const jobMatchRoutes = require('./routes/jobMatchRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const auditLogRoutes = require('./routes/auditLogRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -41,6 +44,9 @@ app.use('/api/interviews', interviewRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/job-match', jobMatchRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/admin/audit-logs', auditLogRoutes);
 
 // Base route
 app.get('/', (req, res) => {

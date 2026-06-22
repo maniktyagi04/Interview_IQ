@@ -1,4 +1,5 @@
 const prisma = require('../prisma/client');
+const auditLogService = require('../services/auditLogService');
 
 // Get all questions (filtered by domain and difficulty)
 const getQuestions = async (req, res) => {
@@ -64,6 +65,15 @@ const createQuestion = async (req, res) => {
       },
     });
 
+    // Write audit log
+    await auditLogService.logAction(
+      req.user.id,
+      'QUESTION_CREATED',
+      'Question',
+      question.id,
+      `Created question "${question.title}" in domain "${question.domain}"`
+    );
+
     res.status(201).json({
       message: 'Question created successfully',
       question,
@@ -98,6 +108,15 @@ const updateQuestion = async (req, res) => {
       },
     });
 
+    // Write audit log
+    await auditLogService.logAction(
+      req.user.id,
+      'QUESTION_UPDATED',
+      'Question',
+      id,
+      `Updated question "${question.title}"`
+    );
+
     res.json({
       message: 'Question updated successfully',
       question,
@@ -124,6 +143,15 @@ const deleteQuestion = async (req, res) => {
     await prisma.question.delete({
       where: { id },
     });
+
+    // Write audit log
+    await auditLogService.logAction(
+      req.user.id,
+      'QUESTION_DELETED',
+      'Question',
+      id,
+      `Deleted question "${existingQuestion.title}"`
+    );
 
     res.json({ message: 'Question deleted successfully' });
   } catch (error) {

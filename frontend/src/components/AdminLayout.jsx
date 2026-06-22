@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Brain, LayoutDashboard, Users, FileQuestion, ClipboardList, LogOut, Menu, X, ChevronRight, Shield } from 'lucide-react';
+import { Brain, LayoutDashboard, Users, FileQuestion, ClipboardList, LogOut, Menu, X, ChevronRight, Shield, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { icon: Users, label: 'Manage Users', path: '/admin/users' },
   { icon: FileQuestion, label: 'Questions', path: '/admin/questions' },
   { icon: ClipboardList, label: 'Pending Reviews', path: '/admin/reviews' },
+  { icon: ShieldAlert, label: 'Audit Logs', path: '/admin/audit-logs' },
 ];
 
 export default function AdminLayout({ children }) {

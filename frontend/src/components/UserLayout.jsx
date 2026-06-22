@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Brain, LayoutDashboard, Play, FileText, FileSearch,
-  BookOpen, User, LogOut, ChevronRight, Menu, X
+  BookOpen, User, LogOut, ChevronRight, Menu, X, Sparkles, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,6 +11,8 @@ const navItems = [
   { icon: Play, label: 'Mock Interview', path: '/interview/setup' },
   { icon: FileText, label: 'My Reports', path: '/reports' },
   { icon: FileSearch, label: 'Resume Analyzer', path: '/resume' },
+  { icon: Sparkles, label: 'Job JD Matcher', path: '/job-match' },
+  { icon: TrendingUp, label: 'Progress Board', path: '/analytics' },
   { icon: BookOpen, label: 'Notes', path: '/notes' },
   { icon: User, label: 'Profile', path: '/profile' },
 ];

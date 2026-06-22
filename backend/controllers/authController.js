@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../prisma/client');
+const emailService = require('../services/emailService');
 
 // Token generation helpers
 const generateAccessToken = (user) => {
@@ -66,6 +67,11 @@ const register = async (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Send welcome email alert asynchronously
+    emailService.sendWelcomeEmail(user).catch((err) => {
+      console.error('Failed to send welcome email:', err.message);
     });
 
     res.status(201).json({
@@ -239,9 +245,13 @@ const forgotPassword = async (req, res) => {
     // Generate reset token
     const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    // In production, send email. For college project, we return success with instructions.
+    // Send password reset email asynchronously
+    emailService.sendPasswordResetEmail(user, resetToken).catch((err) => {
+      console.error('Failed to send password reset email:', err.message);
+    });
+
     res.json({
-      message: 'Password reset link generated and simulated successfully. In production, this email contains the reset token.',
+      message: 'Password reset link sent successfully.',
       resetToken, // Return for simulation ease in the frontend
     });
   } catch (error) {

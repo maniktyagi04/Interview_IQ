@@ -2,6 +2,7 @@ const prisma = require('../prisma/client');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
 const openaiService = require('../services/openaiService');
+const emailService = require('../services/emailService');
 
 // Upload and Analyze Resume
 const uploadResume = async (req, res) => {
@@ -45,6 +46,11 @@ Experience: Full-stack engineer with React, Express, Node.js, and SQL expertise.
         parsedText,
         aiAnalysis: JSON.stringify(aiAnalysis),
       },
+    });
+
+    // Send email alert asynchronously
+    emailService.sendResumeAnalysisCompleteEmail(req.user).catch((err) => {
+      console.error('Failed to send resume analysis completion email:', err.message);
     });
 
     res.status(201).json({

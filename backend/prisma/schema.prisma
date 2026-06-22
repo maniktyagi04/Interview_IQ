@@ -26,6 +26,8 @@ model User {
   createdQuestions Question[]       @relation("CreatedQuestions")
   approvedReports  InterviewReport[] @relation("ApprovedReports")
   analytics       Analytics?
+  jobMatches      JobMatchAnalysis[]
+  auditLogs       AdminAuditLog[]
 }
 
 model Question {
@@ -54,31 +56,38 @@ model Interview {
 }
 
 model InterviewAnswer {
-  id          String    @id @default(uuid())
-  interviewId String
-  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  questionId  String
-  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  answer      String    @db.Text
-  score       Int?      // AI-assigned score (1-10) for this specific answer
-  feedback    String?   @db.Text // AI evaluation detail (accuracy, quality, etc.) for this answer
+  id               String    @id @default(uuid())
+  interviewId      String
+  interview        Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer           String    @db.Text
+  score            Int?      // AI-assigned score (1-10) for this specific answer
+  feedback         String?   @db.Text // AI evaluation detail (accuracy, quality, etc.) for this answer
+  followUpQuestion String?   @db.Text
+  followUpAnswer   String?   @db.Text
+  followUpScore    Int?
+  followUpFeedback String?   @db.Text // AI evaluation detail for the follow up
 }
 
 model InterviewReport {
-  id             String    @id @default(uuid())
-  interviewId    String    @unique
-  interview      Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
-  aiScore        Float
-  strengths      String    @db.Text // JSON string or comma-separated list
-  weaknesses     String    @db.Text // JSON string or comma-separated list
-  suggestions    String    @db.Text // JSON string or comma-separated list
-  summary        String    @db.Text
-  approvalStatus String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  approvedBy     String?
-  approver       User?     @relation("ApprovedReports", fields: [approvedBy], references: [id], onDelete: SetNull)
-  manualFeedback String?   @db.Text
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  interviewId        String    @unique
+  interview          Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  aiScore            Float
+  strengths          String    @db.Text // JSON string or comma-separated list
+  weaknesses         String    @db.Text // JSON string or comma-separated list
+  suggestions        String    @db.Text // JSON string or comma-separated list
+  summary            String    @db.Text
+  approvalStatus     String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedBy         String?
+  approver           User?     @relation("ApprovedReports", fields: [approvedBy], references: [id], onDelete: SetNull)
+  manualFeedback     String?   @db.Text
+  technicalScore     Float?
+  communicationScore Float?
+  confidenceScore    Float?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 model Resume {
@@ -108,4 +117,30 @@ model Analytics {
   averageScore        Float  @default(0.0)
   interviewsCompleted Int    @default(0)
   domainBreakdown     String? @db.Text // JSON string representing performance per domain
+}
+
+model JobMatchAnalysis {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobDescription  String   @db.Text
+  matchScore      Float
+  matchingSkills  String   @db.Text // JSON string array
+  missingSkills   String   @db.Text // JSON string array
+  recommendations String   @db.Text // JSON string array
+  strengths       String   @db.Text // JSON string array
+  weaknesses      String   @db.Text // JSON string array
+  suggestions     String   @db.Text // JSON string array
+  createdAt       DateTime @default(now())
+}
+
+model AdminAuditLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  admin       User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  action      String   // e.g. "QUESTION_CREATED", "USER_BLOCKED"
+  entityType  String   // e.g. "User", "Question"
+  entityId    String?
+  description String   @db.Text
+  createdAt   DateTime @default(now())
 }

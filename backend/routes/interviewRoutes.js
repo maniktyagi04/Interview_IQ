@@ -7,6 +7,9 @@ const { requireRole } = require('../middleware/rbacMiddleware');
 // Mock attempt routes
 router.post('/generate', protect, interviewController.generateMockInterview);
 router.post('/submit', protect, interviewController.submitAnswers);
+router.post('/:interviewId/questions/:questionId/answer', protect, interviewController.submitAnswerQuestion);
+router.post('/:interviewId/answers/:answerId/followup', protect, interviewController.submitAnswerFollowUp);
+router.post('/:interviewId/submit-interactive', protect, interviewController.submitInteractiveInterview);
 router.get('/reports', protect, interviewController.getUserReports);
 router.get('/reports/detail/:id', protect, interviewController.getReportById);
 

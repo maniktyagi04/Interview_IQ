@@ -1,4 +1,6 @@
 const prisma = require('../prisma/client');
+const auditLogService = require('../services/auditLogService');
+const emailService = require('../services/emailService');
 
 // Get Platform Statistics
 const getPlatformStats = async (req, res) => {
@@ -85,6 +87,20 @@ const blockUser = async (req, res) => {
       data: { status: 'BLOCKED' },
     });
 
+    // Write audit log
+    await auditLogService.logAction(
+      req.user.id,
+      'USER_BLOCKED',
+      'User',
+      id,
+      `Blocked user ${user.name} (${user.email})`
+    );
+
+    // Send account status email
+    emailService.sendAccountStatusEmail(user, 'BLOCKED').catch(err => {
+      console.error('Failed to send status email on user block:', err.message);
+    });
+
     res.json({ message: `User ${user.name} has been blocked successfully` });
   } catch (error) {
     console.error('Block User Error:', error);
@@ -108,6 +124,20 @@ const unblockUser = async (req, res) => {
     await prisma.user.update({
       where: { id },
       data: { status: 'ACTIVE' },
+    });
+
+    // Write audit log
+    await auditLogService.logAction(
+      req.user.id,
+      'USER_UNBLOCKED',
+      'User',
+      id,
+      `Unblocked user ${user.name} (${user.email})`
+    );
+
+    // Send account status email
+    emailService.sendAccountStatusEmail(user, 'ACTIVE').catch(err => {
+      console.error('Failed to send status email on user unblock:', err.message);
     });
 
     res.json({ message: `User ${user.name} has been unblocked successfully` });
@@ -137,6 +167,15 @@ const deleteUser = async (req, res) => {
     await prisma.user.delete({
       where: { id },
     });
+
+    // Write audit log
+    await auditLogService.logAction(
+      req.user.id,
+      'USER_DELETED',
+      'User',
+      id,
+      `Deleted user ${user.name} (${user.email})`
+    );
 
     res.json({ message: `User ${user.name} has been deleted successfully` });
   } catch (error) {

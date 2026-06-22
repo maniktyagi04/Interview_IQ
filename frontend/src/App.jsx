@@ -17,6 +17,8 @@ import MockInterviewPage from './pages/user/MockInterviewPage';
 import ReportsPage from './pages/user/ReportsPage';
 import ReportDetailPage from './pages/user/ReportDetailPage';
 import ResumeAnalyzerPage from './pages/user/ResumeAnalyzerPage';
+import JobMatchPage from './pages/user/JobMatchPage';
+import ProgressAnalyticsPage from './pages/user/ProgressAnalyticsPage';
 import NotesPage from './pages/user/NotesPage';
 import ProfilePage from './pages/user/ProfilePage';
 
@@ -26,6 +28,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminQuestionsPage from './pages/admin/AdminQuestionsPage';
 import AdminReviewsPage from './pages/admin/AdminReviewsPage';
 import AdminReviewDetailPage from './pages/admin/AdminReviewDetailPage';
+import AdminAuditLogsPage from './pages/admin/AdminAuditLogsPage';
 
 export default function App() {
   return (
@@ -45,6 +48,8 @@ export default function App() {
           <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path="/reports/:id" element={<ProtectedRoute><ReportDetailPage /></ProtectedRoute>} />
           <Route path="/resume" element={<ProtectedRoute><ResumeAnalyzerPage /></ProtectedRoute>} />
+          <Route path="/job-match" element={<ProtectedRoute><JobMatchPage /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute><ProgressAnalyticsPage /></ProtectedRoute>} />
           <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
@@ -54,6 +59,7 @@ export default function App() {
           <Route path="/admin/questions" element={<AdminRoute><AdminQuestionsPage /></AdminRoute>} />
           <Route path="/admin/reviews" element={<AdminRoute><AdminReviewsPage /></AdminRoute>} />
           <Route path="/admin/reviews/:id" element={<AdminRoute><AdminReviewDetailPage /></AdminRoute>} />
+          <Route path="/admin/audit-logs" element={<AdminRoute><AdminAuditLogsPage /></AdminRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
