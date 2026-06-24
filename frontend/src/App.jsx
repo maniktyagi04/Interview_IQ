@@ -21,6 +21,7 @@ import JobMatchPage from './pages/user/JobMatchPage';
 import ProgressAnalyticsPage from './pages/user/ProgressAnalyticsPage';
 import NotesPage from './pages/user/NotesPage';
 import ProfilePage from './pages/user/ProfilePage';
+import CodingAssessmentPage from './pages/user/CodingAssessmentPage';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/resume" element={<ProtectedRoute><ResumeAnalyzerPage /></ProtectedRoute>} />
           <Route path="/job-match" element={<ProtectedRoute><JobMatchPage /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><ProgressAnalyticsPage /></ProtectedRoute>} />
+          <Route path="/coding" element={<ProtectedRoute><CodingAssessmentPage /></ProtectedRoute>} />
           <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 

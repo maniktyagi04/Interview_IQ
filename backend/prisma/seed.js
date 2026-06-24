@@ -5,6 +5,8 @@ async function main() {
   console.log('Seeding database...');
 
   // Clean existing data
+  await prisma.submission.deleteMany({});
+  await prisma.problem.deleteMany({});
   await prisma.interviewAnswer.deleteMany({});
   await prisma.interviewReport.deleteMany({});
   await prisma.interview.deleteMany({});
@@ -303,6 +305,53 @@ async function main() {
   }
 
   console.log(`Successfully seeded ${count} questions.`);
+
+  const sampleProblems = [
+    {
+      title: 'Two Sum',
+      difficulty: 'Easy',
+      description: 'Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.',
+      starterCode: 'function twoSum(nums, target) {\n  // Write your code here\n}',
+      sampleInput: '[2, 7, 11, 15], 9',
+      sampleOutput: '[0, 1]',
+      tags: ['Array', 'Hash Table']
+    },
+    {
+      title: 'Reverse String',
+      difficulty: 'Easy',
+      description: 'Write a function that reverses a string. The input string is given as an array of characters `s`.\n\nYou must do this by modifying the input array in-place with O(1) extra memory.',
+      starterCode: 'function reverseString(s) {\n  // Write your code here\n  return s;\n}',
+      sampleInput: '["h","e","l","l","o"]',
+      sampleOutput: '["o","l","l","e","h"]',
+      tags: ['String', 'Two Pointers']
+    },
+    {
+      title: 'Palindrome Number',
+      difficulty: 'Easy',
+      description: 'Given an integer `x`, return `true` if `x` is a palindrome, and `false` otherwise.\n\nAn integer is a palindrome when it reads the same backward as forward. For example, 121 is a palindrome while 123 is not.',
+      starterCode: 'function isPalindrome(x) {\n  // Write your code here\n}',
+      sampleInput: '121',
+      sampleOutput: 'true',
+      tags: ['Math']
+    },
+    {
+      title: 'Fibonacci Number',
+      difficulty: 'Easy',
+      description: 'The Fibonacci numbers, commonly denoted `F(n)` form a sequence, called the Fibonacci sequence, such that each number is the sum of the two preceding ones, starting from 0 and 1.\n\nGiven `n`, calculate `F(n)`.',
+      starterCode: 'function fib(n) {\n  // Write your code here\n}',
+      sampleInput: '4',
+      sampleOutput: '3',
+      tags: ['Math', 'Dynamic Programming']
+    }
+  ];
+
+  for (const prob of sampleProblems) {
+    await prisma.problem.create({
+      data: prob
+    });
+  }
+  console.log(`Successfully seeded ${sampleProblems.length} coding problems.`);
+
   console.log('Seeding admin: admin@interviewiq.com (password: admin123)');
   console.log('Seeding standard user: user@interviewiq.com (password: user123)');
   console.log('Database seeding complete!');

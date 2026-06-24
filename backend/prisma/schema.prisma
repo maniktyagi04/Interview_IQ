@@ -28,6 +28,7 @@ model User {
   analytics       Analytics?
   jobMatches      JobMatchAnalysis[]
   auditLogs       AdminAuditLog[]
+  submissions     Submission[]
 }
 
 model Question {
@@ -143,4 +144,29 @@ model AdminAuditLog {
   entityId    String?
   description String   @db.Text
   createdAt   DateTime @default(now())
+}
+
+model Problem {
+  id           String       @id @default(uuid())
+  title        String
+  description  String       @db.Text
+  difficulty   String       // Easy, Medium, Hard
+  starterCode  String       @db.Text
+  sampleInput  String       @db.Text
+  sampleOutput String       @db.Text
+  tags         String[]
+  submissions  Submission[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Submission {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId   String
+  problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  code        String   @db.Text
+  language    String
+  submittedAt DateTime @default(now())
 }

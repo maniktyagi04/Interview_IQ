@@ -16,6 +16,8 @@ const adminRoutes = require('./routes/adminRoutes');
 const jobMatchRoutes = require('./routes/jobMatchRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const auditLogRoutes = require('./routes/auditLogRoutes');
+const problemRoutes = require('./routes/problemRoutes');
+const submissionRoutes = require('./routes/submissionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -47,6 +49,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/job-match', jobMatchRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin/audit-logs', auditLogRoutes);
+app.use('/api/problems', problemRoutes);
+app.use('/api/submissions', submissionRoutes);
 
 // Base route
 app.get('/', (req, res) => {
