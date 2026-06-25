@@ -345,11 +345,95 @@ Follow-up Answer: "${followUpAnswer}"`;
   });
 }
 
+/**
+ * Analyzes the user's code submission and generates structural feedback/review.
+ */
+async function analyzeSubmissionCode(code, language, problemTitle, problemDescription, verdict, passedTests, totalTests) {
+  const systemPrompt = `You are an expert technical interviewer and code reviewer. Analyze the candidate's code submission for the coding problem.
+Return your evaluation STRICTLY as a JSON object with this format:
+{
+  "codeQualityScore": 85, // Integer 0-100 representing the clean code quality, modularity, edge cases handling, and structure.
+  "timeComplexity": "O(N)", // String representing the asymptotic time complexity of the solution.
+  "spaceComplexity": "O(N)", // String representing the asymptotic space complexity of the solution.
+  "optimizationSuggestions": ["list item 1", "list item 2"], // Array of strings detailing specific code optimizations. If none, return empty array.
+  "readabilityFeedback": "Feedback on code layout, naming conventions, comments, and readability.",
+  "interviewReadinessFeedback": "Feedback on how ready this solution is for a real interview. How well could the candidate explain this, what patterns are used, and what concepts they should study."
+}`;
+
+  const userPrompt = `Problem Title: "${problemTitle}"
+Problem Description: "${problemDescription}"
+Language: "${language}"
+Code Submitted:
+\`\`\`${language}
+${code}
+\`\`\`
+Submission Correctness Test Results:
+- Verdict: ${verdict}
+- Passed Tests: ${passedTests}/${totalTests}`;
+
+  return callOpenAI(systemPrompt, userPrompt, () => {
+    // Highly detailed mock fallback generator
+    // Look at code properties to generate realistic complexity estimation
+    let codeQualityScore = 75;
+    let timeComplexity = 'O(N)';
+    let spaceComplexity = 'O(1)';
+    let optimizationSuggestions = [];
+    let readabilityFeedback = 'The code is reasonably structured. Variable naming is clear and descriptive.';
+    let interviewReadinessFeedback = 'The candidate shows a solid grasp of basic implementation. Try explaining the space/time complexity tradeoff during the introduction.';
+
+    const hasMapOrSet = /new\s+(Map|Set)/i.test(code);
+    const hasNestedLoops = /for\s*\(.*for\s*\(/.test(code.replace(/\s+/g, ' '));
+    const codeLen = code.trim().length;
+
+    if (hasNestedLoops) {
+      timeComplexity = 'O(N^2)';
+      optimizationSuggestions.push('Consider optimizing the nested loop to O(N) using a Hash Map or sorting if applicable.');
+      codeQualityScore -= 10;
+    } else if (hasMapOrSet) {
+      timeComplexity = 'O(N)';
+      spaceComplexity = 'O(N)';
+      optimizationSuggestions.push('The time complexity is optimized to O(N) at the cost of O(N) extra space. Ensure you can explain this tradeoff to your interviewer.');
+    }
+
+    if (codeLen < 50) {
+      codeQualityScore -= 15;
+      readabilityFeedback = 'The solution is extremely brief. Consider structure, comments, or variable naming extensions to improve professional readability.';
+    } else if (codeLen > 200) {
+      codeQualityScore += 10;
+      readabilityFeedback = 'Good code structure with clean logic spacing. Variable naming matches standard conventions.';
+    }
+
+    if (verdict !== 'ACCEPTED') {
+      codeQualityScore = Math.max(codeQualityScore - 20, 30);
+      optimizationSuggestions.push('Analyze why the test cases failed (either Wrong Answer, Runtime Error, or Timeout). Correct correctness issues first before focusing on micro-optimizations.');
+      interviewReadinessFeedback = 'The code currently has failing tests. Focus on correctness and debugging techniques. Walk through dry runs of your code with simple sample inputs to catch logic errors.';
+    } else {
+      codeQualityScore = Math.min(codeQualityScore + 10, 100);
+      optimizationSuggestions.push('The solution is fully correct and passes all test cases. Look into alternative styles or language-specific constructs to make it cleaner.');
+      interviewReadinessFeedback = 'Excellent. The solution is ready for interview presentation. Practice explaining your dry-run execution on a whiteboard or virtual notepad.';
+    }
+
+    if (optimizationSuggestions.length === 0) {
+      optimizationSuggestions.push('No obvious performance optimization is needed. Consider writing comments explaining the logic.');
+    }
+
+    return {
+      codeQualityScore,
+      timeComplexity,
+      spaceComplexity,
+      optimizationSuggestions,
+      readabilityFeedback,
+      interviewReadinessFeedback
+    };
+  });
+}
+
 module.exports = {
   evaluateAnswer,
   generateOverallReport,
   analyzeResume,
   analyzeJobMatch,
   generateFollowUpQuestion,
-  evaluateFollowUpAnswer
+  evaluateFollowUpAnswer,
+  analyzeSubmissionCode
 };

@@ -183,4 +183,19 @@ model Submission {
   verdict       String   @default("PENDING")
   executionTime Float?
   submittedAt   DateTime @default(now())
+  
+  report        SubmissionReport?
+}
+
+model SubmissionReport {
+  id                         String     @id @default(uuid())
+  submissionId               String     @unique
+  submission                 Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  codeQualityScore           Int
+  timeComplexity             String
+  spaceComplexity            String
+  optimizationSuggestions    String     @db.Text // stored as JSON array string
+  readabilityFeedback        String     @db.Text
+  interviewReadinessFeedback String     @db.Text
+  createdAt                  DateTime   @default(now())
 }

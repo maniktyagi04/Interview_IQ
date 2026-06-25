@@ -1,5 +1,6 @@
 const prisma = require('../prisma/client');
 const codeRunner = require('../services/codeRunner');
+const openaiService = require('../services/openaiService');
 
 // Create a new submission and run the tests
 const createSubmission = async (req, res) => {
@@ -57,6 +58,32 @@ const createSubmission = async (req, res) => {
       }
     });
 
+    // Generate AI code review feedback and save to DB
+    try {
+      const aiFeedback = await openaiService.analyzeSubmissionCode(
+        code,
+        language,
+        problem.title,
+        problem.description,
+        runResult.verdict,
+        runResult.passedTests,
+        runResult.totalTests
+      );
+
+      await prisma.submissionReport.create({
+        data: {
+          submissionId: updatedSubmission.id,
+          codeQualityScore: aiFeedback.codeQualityScore,
+          timeComplexity: aiFeedback.timeComplexity,
+          spaceComplexity: aiFeedback.spaceComplexity,
+          optimizationSuggestions: JSON.stringify(aiFeedback.optimizationSuggestions),
+          readabilityFeedback: aiFeedback.readabilityFeedback,
+          interviewReadinessFeedback: aiFeedback.interviewReadinessFeedback
+        }
+      });
+    } catch (aiError) {
+      console.error('Failed to generate/save AI report:', aiError);
+    }
 
     // Map verdicts to legacy display values for frontend console compatibility
     const statusMap = {
@@ -146,7 +173,74 @@ const getUserSubmissions = async (req, res) => {
   }
 };
 
+// Get AI report for a specific submission
+const getSubmissionReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const submission = await prisma.submission.findUnique({
+      where: { id },
+      include: {
+        report: true,
+        problem: {
+          select: {
+            title: true,
+            difficulty: true
+          }
+        }
+      }
+    });
+
+    if (!submission) {
+      return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    // Security check: Only the submission owner (or an admin) can access this report
+    if (submission.userId !== userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    if (!submission.report) {
+      return res.status(404).json({ message: 'AI report not found for this submission' });
+    }
+
+    let optimizationSuggestions = [];
+    try {
+      optimizationSuggestions = JSON.parse(submission.report.optimizationSuggestions);
+    } catch (e) {
+      optimizationSuggestions = [submission.report.optimizationSuggestions];
+    }
+
+    res.json({
+      submissionId: submission.id,
+      problemTitle: submission.problem.title,
+      difficulty: submission.problem.difficulty,
+      verdict: submission.verdict,
+      passedTests: submission.passedTests,
+      totalTests: submission.totalTests,
+      code: submission.code,
+      language: submission.language,
+      submittedAt: submission.submittedAt,
+      report: {
+        id: submission.report.id,
+        codeQualityScore: submission.report.codeQualityScore,
+        timeComplexity: submission.report.timeComplexity,
+        spaceComplexity: submission.report.spaceComplexity,
+        optimizationSuggestions,
+        readabilityFeedback: submission.report.readabilityFeedback,
+        interviewReadinessFeedback: submission.report.interviewReadinessFeedback,
+        createdAt: submission.report.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Get Submission Report Error:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   createSubmission,
   getUserSubmissions,
+  getSubmissionReport,
 };
