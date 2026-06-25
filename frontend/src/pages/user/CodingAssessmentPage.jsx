@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Code2, Terminal, Play, Send, History, Sparkles, 
-  CheckCircle2, AlertTriangle, XCircle, RefreshCw, ChevronRight, Info, Eye, Download
+  CheckCircle2, AlertTriangle, XCircle, RefreshCw, ChevronRight, Info, Eye, Download, Star, ArrowLeft, Timer
 } from 'lucide-react';
 import UserLayout from '../../components/UserLayout';
 import api from '../../services/api';
@@ -14,6 +15,11 @@ const DIFFICULTIES = {
 };
 
 export default function CodingAssessmentPage() {
+  const { problemId } = useParams();
+  const [searchParams] = useSearchParams();
+  const contestId = searchParams.get('contestId');
+  const navigate = useNavigate();
+
   const [problems, setProblems] = useState([]);
   const [selectedProblem, setSelectedProblem] = useState(null);
   const [code, setCode] = useState('');
@@ -22,6 +28,10 @@ export default function CodingAssessmentPage() {
   const [activeTab, setActiveTab] = useState('description'); // description | submissions
   const [submissions, setSubmissions] = useState([]);
   
+  // Contest States
+  const [contestInfo, setContestInfo] = useState(null);
+  const [contestTimeLeft, setContestTimeLeft] = useState('');
+
   // Execution states
   const [isRunning, setIsRunning] = useState(false);
   const [runResult, setRunResult] = useState(null);
@@ -31,29 +41,52 @@ export default function CodingAssessmentPage() {
   // Modal states for viewing code
   const [viewingCode, setViewingCode] = useState(null);
 
-  // Fetch all problems
-  const fetchProblems = async () => {
+  // Fetch problems for selector
+  const fetchSelectorProblems = async () => {
     try {
-      setLoadingProblems(true);
-      const res = await api.get('/problems');
-      setProblems(res.data);
-      if (res.data.length > 0) {
-        setSelectedProblem(res.data[0]);
-        setCode(res.data[0].starterCode);
+      if (contestId) {
+        const res = await api.get(`/contests/${contestId}`);
+        setContestInfo(res.data);
+        setProblems(res.data.problems);
+      } else {
+        const res = await api.get('/problems');
+        setProblems(res.data);
       }
     } catch (err) {
-      console.error('Failed to fetch coding problems:', err);
+      console.error('Failed to fetch selector problems:', err);
+    }
+  };
+
+  // Fetch active problem details
+  const fetchActiveProblem = async () => {
+    if (!problemId) return;
+    try {
+      setLoadingProblems(true);
+      const res = await api.get(`/problems/${problemId}`);
+      setSelectedProblem(res.data);
+      
+      // Load code from cache or starter template
+      if (codesCache[problemId]) {
+        setCode(codesCache[problemId]);
+      } else {
+        setCode(res.data.starterCode);
+      }
+      
+      // Load submissions for this problem
+      fetchSubmissions(problemId);
+    } catch (err) {
+      console.error('Failed to load active problem details:', err);
     } finally {
       setLoadingProblems(false);
     }
   };
 
   // Fetch submissions for active problem
-  const fetchSubmissions = async (problemId) => {
-    if (!problemId) return;
+  const fetchSubmissions = async (pId) => {
+    if (!pId) return;
     try {
       setLoadingSubmissions(true);
-      const res = await api.get(`/submissions/user?problemId=${problemId}`);
+      const res = await api.get(`/submissions/user?problemId=${pId}`);
       setSubmissions(res.data);
     } catch (err) {
       console.error('Failed to fetch submissions:', err);
@@ -63,38 +96,65 @@ export default function CodingAssessmentPage() {
   };
 
   useEffect(() => {
-    fetchProblems();
-  }, []);
+    fetchSelectorProblems();
+  }, [contestId]);
 
-  // Fetch submissions when tab switches or active problem changes
   useEffect(() => {
-    if (selectedProblem) {
-      fetchSubmissions(selectedProblem.id);
-    }
-  }, [selectedProblem, activeTab]);
+    fetchActiveProblem();
+  }, [problemId]);
+
+  // Contest timer countdown
+  useEffect(() => {
+    if (!contestInfo) return;
+    
+    const updateContestTime = () => {
+      const now = new Date();
+      const end = new Date(contestInfo.endTime);
+      const diff = end - now;
+
+      if (diff <= 0) {
+        setContestTimeLeft('Contest Ended');
+        return;
+      }
+
+      const hrs = String(Math.floor((diff / (1000 * 60 * 60)) % 24)).padStart(2, '0');
+      const mins = String(Math.floor((diff / 1000 / 60) % 60)).padStart(2, '0');
+      const secs = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+
+      setContestTimeLeft(`${hrs}:${mins}:${secs}`);
+    };
+
+    updateContestTime();
+    const interval = setInterval(updateContestTime, 1000);
+    return () => clearInterval(interval);
+  }, [contestInfo]);
 
   // Handle problem change
-  const handleProblemChange = (problem) => {
-    // Cache current code before switching
+  const handleProblemChange = (newProblemId) => {
     if (selectedProblem) {
       setCodesCache(prev => ({ ...prev, [selectedProblem.id]: code }));
     }
-    
-    setSelectedProblem(problem);
-    setRunResult(null);
-    setActiveTab('description');
-    
-    // Load from cache or starterCode
-    if (codesCache[problem.id]) {
-      setCode(codesCache[problem.id]);
-    } else {
-      setCode(problem.starterCode);
+    const query = contestId ? `?contestId=${contestId}` : '';
+    navigate(`/coding/solve/${newProblemId}${query}`);
+  };
+
+  // Toggle problem bookmark directly from workspace
+  const handleToggleBookmark = async () => {
+    if (!selectedProblem) return;
+    try {
+      const res = await api.post(`/problems/${selectedProblem.id}/bookmark`);
+      setSelectedProblem(prev => ({
+        ...prev,
+        isBookmarked: res.data.bookmarked
+      }));
+    } catch (err) {
+      console.error('Bookmark toggle failed:', err);
     }
   };
 
   // Reset to starter code
   const handleResetCode = () => {
-    if (selectedProblem && confirm('Are you sure you want to reset your code to the default template? This will discard your current edits.')) {
+    if (selectedProblem && confirm('Are you sure you want to reset your code to the default template? This will discard your current draft.')) {
       setCode(selectedProblem.starterCode);
       setCodesCache(prev => {
         const copy = { ...prev };
@@ -114,7 +174,8 @@ export default function CodingAssessmentPage() {
       const res = await api.post('/submissions', {
         problemId: selectedProblem.id,
         code,
-        language
+        language,
+        contestId: contestId || undefined
       });
       
       setRunResult(res.data.result);
@@ -158,6 +219,35 @@ export default function CodingAssessmentPage() {
   return (
     <UserLayout>
       <div className="max-w-[1600px] mx-auto flex flex-col gap-6 h-[calc(100vh-120px)]">
+        {/* Contest Header Banner if in contest mode */}
+        {contestId && contestInfo && (
+          <div className="flex justify-between items-center bg-gradient-to-r from-red-950/20 via-slate-900/40 to-amber-950/20 border border-white/6 p-3 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <Link 
+                to="/coding" 
+                className="p-1.5 bg-white/3 hover:bg-white/6 border border-white/8 rounded-lg text-slate-400 hover:text-white transition-all text-xs flex items-center gap-1"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Exit Contest
+              </Link>
+              <div className="ml-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-red-400">Contest Mode Active</span>
+                <h4 className="text-sm font-bold text-white">{contestInfo.title}</h4>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-[9px] uppercase font-bold text-slate-500">Contest Time Remaining</p>
+                <div className="flex items-center gap-1.5 text-white font-mono font-bold text-sm">
+                  <Timer className="w-4 h-4 text-red-400" />
+                  {contestTimeLeft}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Workspace Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/3 border border-white/6 p-4 rounded-2xl backdrop-blur-md">
           <div className="flex items-center gap-3">
@@ -165,7 +255,14 @@ export default function CodingAssessmentPage() {
               <Code2 className="w-5 h-5 text-violet-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold font-display text-white">Coding Assessment Workspace</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold font-display text-white">Coding Assessment Workspace</h1>
+                {!contestId && (
+                  <Link to="/coding" className="text-xs text-violet-400 hover:underline flex items-center">
+                    (Return to Hub)
+                  </Link>
+                )}
+              </div>
               <p className="text-xs text-slate-400">Solve mock interview coding tasks and check answers in real-time.</p>
             </div>
           </div>
@@ -176,15 +273,16 @@ export default function CodingAssessmentPage() {
               <select
                 id="problem-select"
                 value={selectedProblem?.id || ''}
-                onChange={(e) => {
-                  const prob = problems.find(p => p.id === e.target.value);
-                  if (prob) handleProblemChange(prob);
-                }}
+                onChange={(e) => handleProblemChange(e.target.value)}
                 className="w-full sm:w-64 bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer pr-10"
               >
-                {problems.map(p => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
+                {problems.map(p => {
+                  const id = contestId ? p.id : p.id;
+                  const title = contestId ? p.title : p.title;
+                  return (
+                    <option key={id} value={id}>{title}</option>
+                  );
+                })}
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
                 <ChevronRight className="w-4 h-4 rotate-90" />
@@ -247,12 +345,23 @@ export default function CodingAssessmentPage() {
                 <div className="space-y-5 animate-fadeIn">
                   {/* Title & Metadata */}
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2.5">
-                      <h2 className="text-xl font-bold text-white font-display">{selectedProblem.title}</h2>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${DIFFICULTIES[selectedProblem.difficulty]}`}>
-                        {selectedProblem.difficulty}
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="text-xl font-bold text-white font-display">{selectedProblem.title}</h2>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${DIFFICULTIES[selectedProblem.difficulty]}`}>
+                          {selectedProblem.difficulty}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={handleToggleBookmark}
+                        className="text-slate-400 hover:text-amber-400 p-1.5 bg-white/3 border border-white/6 hover:bg-white/6 rounded-xl transition-all flex items-center gap-1 text-xs"
+                      >
+                        <Star className={`w-3.5 h-3.5 ${selectedProblem.isBookmarked ? 'fill-amber-400 text-amber-400' : ''}`} />
+                        {selectedProblem.isBookmarked ? 'Bookmarked' : 'Bookmark'}
+                      </button>
                     </div>
+
                     {/* Tags */}
                     <div className="flex flex-wrap gap-1.5">
                       {selectedProblem.tags.map(tag => (

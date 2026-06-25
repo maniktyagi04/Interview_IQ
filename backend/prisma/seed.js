@@ -5,6 +5,12 @@ async function main() {
   console.log('Seeding database...');
 
   // Clean existing data
+  await prisma.dailyChallenge.deleteMany({});
+  await prisma.bookmark.deleteMany({});
+  await prisma.contestParticipation.deleteMany({});
+  await prisma.contestProblem.deleteMany({});
+  await prisma.contest.deleteMany({});
+  await prisma.submissionReport.deleteMany({});
   await prisma.submission.deleteMany({});
   await prisma.problem.deleteMany({});
   await prisma.interviewAnswer.deleteMany({});
@@ -377,6 +383,151 @@ async function main() {
     });
   }
   console.log(`Successfully seeded ${sampleProblems.length} coding problems.`);
+
+  // Fetch seeded problems to associate with daily challenge and contests
+  const allProblems = await prisma.problem.findMany();
+
+  // 1. Set today's Daily Challenge
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const twoSumProblem = allProblems.find(p => p.title === 'Two Sum') || allProblems[0];
+  await prisma.dailyChallenge.create({
+    data: {
+      problemId: twoSumProblem.id,
+      date: today,
+      points: 50
+    }
+  });
+  console.log(`Set Daily Challenge to problem: ${twoSumProblem.title}`);
+
+  // 2. Create Contests
+  const now = new Date();
+
+  // Active Contest (Starts 1 hour ago, ends in 2 hours)
+  const activeStartTime = new Date(now.getTime() - 60 * 60 * 1000);
+  const activeEndTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const activeContest = await prisma.contest.create({
+    data: {
+      title: 'Weekly Coding Contest #42',
+      description: 'Test your data structures and algorithms skills against the community. Top performers win profile badges!',
+      startTime: activeStartTime,
+      endTime: activeEndTime,
+      problems: {
+        create: [
+          { problemId: allProblems[0].id, points: 100, order: 1 },
+          { problemId: allProblems[1].id, points: 200, order: 2 }
+        ]
+      }
+    }
+  });
+
+  // Upcoming Contest (Starts in 3 days, ends in 3 days + 3 hours)
+  const upcomingStartTime = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const upcomingEndTime = new Date(upcomingStartTime.getTime() + 3 * 60 * 60 * 1000);
+  const upcomingContest = await prisma.contest.create({
+    data: {
+      title: 'Interview Prep Speedrun',
+      description: 'Practice fast coding. Easy and Medium problems designed to mimic actual technical screening conditions.',
+      startTime: upcomingStartTime,
+      endTime: upcomingEndTime,
+      problems: {
+        create: [
+          { problemId: allProblems[2].id, points: 100, order: 1 },
+          { problemId: allProblems[3].id, points: 200, order: 2 }
+        ]
+      }
+    }
+  });
+
+  // Past Contest (Ended 2 days ago)
+  const pastStartTime = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+  const pastEndTime = new Date(pastStartTime.getTime() + 2 * 60 * 60 * 1000);
+  const pastContest = await prisma.contest.create({
+    data: {
+      title: 'Algorithms Warmup 2026',
+      description: 'A completed beginner-friendly competition to practice coding basics.',
+      startTime: pastStartTime,
+      endTime: pastEndTime,
+      problems: {
+        create: [
+          { problemId: allProblems[0].id, points: 100, order: 1 }
+        ]
+      }
+    }
+  });
+  console.log('Seeded active, upcoming, and past contests.');
+
+  // Register user for past and active contests
+  await prisma.contestParticipation.createMany({
+    data: [
+      { contestId: activeContest.id, userId: user.id, score: 100, finishTime: new Date(now.getTime() - 15 * 60 * 1000) },
+      { contestId: pastContest.id, userId: user.id, score: 100, finishTime: new Date(pastStartTime.getTime() + 45 * 60 * 1000) }
+    ]
+  });
+
+  // 3. Seed historical submissions for user to build heatmap over past 6 months
+  const submissionData = [];
+  const statusOptions = ['ACCEPTED', 'WRONG_ANSWER', 'COMPILE_ERROR', 'RUNTIME_ERROR'];
+  
+  for (let i = 0; i < 60; i++) {
+    // Generate dates in the past 6 months
+    const subDate = new Date();
+    const daysAgo = Math.floor(Math.random() * 180);
+    subDate.setDate(subDate.getDate() - daysAgo);
+    
+    // Pick random problem
+    const randomProb = allProblems[Math.floor(Math.random() * allProblems.length)];
+    const randomVerdict = Math.random() < 0.7 ? 'ACCEPTED' : statusOptions[Math.floor(Math.random() * statusOptions.length)];
+
+    submissionData.push({
+      userId: user.id,
+      problemId: randomProb.id,
+      code: 'console.log("Mock Submission code");',
+      language: 'javascript',
+      passedTests: randomVerdict === 'ACCEPTED' ? 3 : 1,
+      totalTests: 3,
+      verdict: randomVerdict,
+      executionTime: 0.12,
+      submittedAt: subDate
+    });
+  }
+
+  await prisma.submission.createMany({
+    data: submissionData
+  });
+  console.log(`Seeded ${submissionData.length} historical user submissions for heatmap.`);
+
+  // 4. Update standard user profile points and streaks
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      points: 380,
+      currentStreak: 5,
+      longestStreak: 15,
+      lastActiveDate: now
+    }
+  });
+
+  // 5. Seed other users for global leaderboard
+  const dummyUsers = [
+    { name: 'Alice Algorithm', email: 'alice@interviewiq.com', points: 650, currentStreak: 12, longestStreak: 25 },
+    { name: 'Bob Byte', email: 'bob@interviewiq.com', points: 420, currentStreak: 8, longestStreak: 18 },
+    { name: 'Charlie Coder', email: 'charlie@interviewiq.com', points: 310, currentStreak: 2, longestStreak: 10 },
+    { name: 'Diana Dev', email: 'diana@interviewiq.com', points: 290, currentStreak: 0, longestStreak: 9 },
+    { name: 'Evan Engineer', email: 'evan@interviewiq.com', points: 150, currentStreak: 1, longestStreak: 5 }
+  ];
+
+  for (const du of dummyUsers) {
+    const dummyPassword = await bcrypt.hash('user123', salt);
+    await prisma.user.create({
+      data: {
+        ...du,
+        password: dummyPassword,
+        role: 'USER'
+      }
+    });
+  }
+  console.log('Seeded global leaderboard users.');
 
   console.log('Seeding admin: admin@interviewiq.com (password: admin123)');
   console.log('Seeding standard user: user@interviewiq.com (password: user123)');

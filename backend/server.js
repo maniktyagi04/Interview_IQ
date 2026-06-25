@@ -18,6 +18,7 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const auditLogRoutes = require('./routes/auditLogRoutes');
 const problemRoutes = require('./routes/problemRoutes');
 const submissionRoutes = require('./routes/submissionRoutes');
+const contestRoutes = require('./routes/contestRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -51,6 +52,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin/audit-logs', auditLogRoutes);
 app.use('/api/problems', problemRoutes);
 app.use('/api/submissions', submissionRoutes);
+app.use('/api/contests', contestRoutes);
 
 // Base route
 app.get('/', (req, res) => {

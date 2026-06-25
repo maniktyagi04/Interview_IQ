@@ -5,7 +5,7 @@ const openaiService = require('../services/openaiService');
 // Create a new submission and run the tests
 const createSubmission = async (req, res) => {
   try {
-    const { problemId, code, language } = req.body;
+    const { problemId, code, language, contestId } = req.body;
     const userId = req.user.id;
 
     if (!problemId || !code || !language) {
@@ -30,6 +30,7 @@ const createSubmission = async (req, res) => {
         problemId,
         code,
         language,
+        contestId: contestId || null
       },
     });
 
@@ -57,6 +58,132 @@ const createSubmission = async (req, res) => {
         executionTime: runResult.executionTime
       }
     });
+
+    // Score & Streak update on Accepted verdict
+    if (runResult.verdict === 'ACCEPTED') {
+      try {
+        const previouslySolved = await prisma.submission.findFirst({
+          where: {
+            userId,
+            problemId,
+            verdict: 'ACCEPTED',
+            id: { not: updatedSubmission.id }
+          }
+        });
+
+        let pointsEarned = 0;
+        if (!previouslySolved) {
+          const difficultyPoints = { 'Easy': 10, 'Medium': 20, 'Hard': 30 };
+          pointsEarned = difficultyPoints[problem.difficulty] || 10;
+
+          // Check if it is the daily challenge today
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date();
+          todayEnd.setHours(23, 59, 59, 999);
+
+          const dailyChallenge = await prisma.dailyChallenge.findFirst({
+            where: {
+              problemId,
+              date: { gte: todayStart, lte: todayEnd }
+            }
+          });
+
+          if (dailyChallenge) {
+            pointsEarned += 15; // daily challenge bonus points
+          }
+
+          // Credit user points
+          await prisma.user.update({
+            where: { id: userId },
+            data: { points: { increment: pointsEarned } }
+          });
+        }
+
+        // Update streak
+        const userRecord = await prisma.user.findUnique({
+          where: { id: userId }
+        });
+
+        let newStreak = userRecord.currentStreak;
+        const lastActive = userRecord.lastActiveDate;
+        const now = new Date();
+
+        if (!lastActive) {
+          newStreak = 1;
+        } else {
+          const lastActiveDateOnly = new Date(lastActive);
+          lastActiveDateOnly.setHours(0, 0, 0, 0);
+          const todayDateOnly = new Date();
+          todayDateOnly.setHours(0, 0, 0, 0);
+
+          const diffTime = Math.abs(todayDateOnly - lastActiveDateOnly);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            newStreak += 1;
+          } else if (diffDays > 1) {
+            newStreak = 1;
+          }
+        }
+
+        const longestStreak = Math.max(userRecord.longestStreak, newStreak);
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            currentStreak: newStreak,
+            longestStreak,
+            lastActiveDate: now
+          }
+        });
+
+        // Contest Participation points update
+        if (contestId) {
+          const contest = await prisma.contest.findUnique({
+            where: { id: contestId },
+            include: { problems: true }
+          });
+
+          if (contest && now >= new Date(contest.startTime) && now <= new Date(contest.endTime)) {
+            // User registered?
+            const participation = await prisma.contestParticipation.findUnique({
+              where: {
+                contestId_userId: { contestId, userId }
+              }
+            });
+
+            if (participation) {
+              const alreadySolvedInContest = await prisma.submission.findFirst({
+                where: {
+                  userId,
+                  problemId,
+                  contestId,
+                  verdict: 'ACCEPTED',
+                  id: { not: updatedSubmission.id }
+                }
+              });
+
+              if (!alreadySolvedInContest) {
+                const cp = contest.problems.find(p => p.problemId === problemId);
+                const cpPoints = cp ? cp.points : 100;
+
+                await prisma.contestParticipation.update({
+                  where: {
+                    contestId_userId: { contestId, userId }
+                  },
+                  data: {
+                    score: { increment: cpPoints },
+                    finishTime: now
+                  }
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Streak/Points/Contest Update Failed:', err);
+      }
+    }
 
     // Generate AI code review feedback and save to DB
     try {

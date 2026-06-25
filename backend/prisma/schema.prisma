@@ -17,6 +17,10 @@ model User {
   role            String            @default("USER") // USER, ADMIN
   profileImage    String?
   status          String            @default("ACTIVE") // ACTIVE, BLOCKED
+  currentStreak   Int               @default(0)
+  longestStreak   Int               @default(0)
+  lastActiveDate  DateTime?
+  points          Int               @default(0)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -29,6 +33,8 @@ model User {
   jobMatches      JobMatchAnalysis[]
   auditLogs       AdminAuditLog[]
   submissions     Submission[]
+  bookmarks       Bookmark[]
+  contestParticipations ContestParticipation[]
 }
 
 model Question {
@@ -147,18 +153,21 @@ model AdminAuditLog {
 }
 
 model Problem {
-  id           String       @id @default(uuid())
-  title        String
-  description  String       @db.Text
-  difficulty   String       // Easy, Medium, Hard
-  starterCode  String       @db.Text
-  sampleInput  String       @db.Text
-  sampleOutput String       @db.Text
-  tags         String[]
-  testCases    TestCase[]
-  submissions  Submission[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id              String           @id @default(uuid())
+  title           String
+  description     String           @db.Text
+  difficulty      String           // Easy, Medium, Hard
+  starterCode     String           @db.Text
+  sampleInput     String           @db.Text
+  sampleOutput    String           @db.Text
+  tags            String[]
+  testCases       TestCase[]
+  submissions     Submission[]
+  dailyChallenges DailyChallenge[]
+  bookmarks       Bookmark[]
+  contestProblems ContestProblem[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model TestCase {
@@ -171,20 +180,24 @@ model TestCase {
 }
 
 model Submission {
-  id            String   @id @default(uuid())
+  id            String            @id @default(uuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   problemId     String
-  problem       Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  code          String   @db.Text
+  problem       Problem           @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  code          String            @db.Text
   language      String
-  passedTests   Int      @default(0)
-  totalTests    Int      @default(0)
-  verdict       String   @default("PENDING")
+  passedTests   Int               @default(0)
+  totalTests    Int               @default(0)
+  verdict       String            @default("PENDING")
   executionTime Float?
-  submittedAt   DateTime @default(now())
+  submittedAt   DateTime          @default(now())
+  contestId     String?
+  contest       Contest?          @relation(fields: [contestId], references: [id], onDelete: SetNull)
   
   report        SubmissionReport?
+
+  @@index([userId, submittedAt])
 }
 
 model SubmissionReport {
@@ -198,4 +211,62 @@ model SubmissionReport {
   readabilityFeedback        String     @db.Text
   interviewReadinessFeedback String     @db.Text
   createdAt                  DateTime   @default(now())
+}
+
+model DailyChallenge {
+  id        String   @id @default(uuid())
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  date      DateTime @unique // YYYY-MM-DD
+  points    Int      @default(50)
+  createdAt DateTime @default(now())
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, problemId])
+}
+
+model Contest {
+  id             String                 @id @default(uuid())
+  title          String
+  description    String                 @db.Text
+  startTime      DateTime
+  endTime        DateTime
+  problems       ContestProblem[]
+  participations ContestParticipation[]
+  submissions    Submission[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+}
+
+model ContestProblem {
+  id        String  @id @default(uuid())
+  contestId String
+  contest   Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  problemId String
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  points    Int     @default(100)
+  order     Int     @default(0)
+
+  @@unique([contestId, problemId])
+}
+
+model ContestParticipation {
+  id           String    @id @default(uuid())
+  contestId    String
+  contest      Contest   @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score        Int       @default(0)
+  finishTime   DateTime?
+  registeredAt DateTime  @default(now())
+
+  @@unique([contestId, userId])
 }
