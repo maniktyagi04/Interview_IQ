@@ -14,6 +14,56 @@ const DIFFICULTIES = {
   Hard: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
 };
 
+const STARTER_TEMPLATES = {
+  javascript: {
+    'Two Sum': `function twoSum(nums, target) {\n  // Write your JavaScript code here\n}`,
+    'Reverse String': `function reverseString(s) {\n  // Write your JavaScript code here\n  return s;\n}`,
+    'Palindrome Number': `function isPalindrome(x) {\n  // Write your JavaScript code here\n}`,
+    'Fibonacci Number': `function fib(n) {\n  // Write your JavaScript code here\n}`
+  },
+  python: {
+    'Two Sum': `def twoSum(nums: list[int], target: int) -> list[int]:\n    # Write your Python code here\n    pass`,
+    'Reverse String': `def reverseString(s: list[str]) -> list[str]:\n    # Write your Python code here\n    return s`,
+    'Palindrome Number': `def isPalindrome(x: int) -> bool:\n    # Write your Python code here\n    pass`,
+    'Fibonacci Number': `def fib(n: int) -> int:\n    # Write your Python code here\n    pass`
+  },
+  cpp: {
+    'Two Sum': `#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        // Write C++ code here\n    }\n};`,
+    'Reverse String': `#include <vector>\nusing namespace std;\n\nclass Solution {\npublic:\n    void reverseString(vector<char>& s) {\n        // Write C++ code here\n    }\n};`,
+    'Palindrome Number': `class Solution {\npublic:\n    bool isPalindrome(int x) {\n        // Write C++ code here\n    }\n};`,
+    'Fibonacci Number': `class Solution {\npublic:\n    int fib(int n) {\n        // Write C++ code here\n    }\n};`
+  },
+  java: {
+    'Two Sum': `import java.util.*;\n\nclass Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // Write Java code here\n        return new int[]{};\n    }\n}`,
+    'Reverse String': `class Solution {\n    public void reverseString(char[] s) {\n        // Write Java code here\n    }\n}`,
+    'Palindrome Number': `class Solution {\n    public boolean isPalindrome(int x) {\n        // Write Java code here\n        return false;\n    }\n}`,
+    'Fibonacci Number': `class Solution {\n    public int fib(int n) {\n        // Write Java code here\n        return 0;\n    }\n}`
+  }
+};
+
+const getStarterCode = (problemTitle, lang, defaultJsCode) => {
+  const langTemplates = STARTER_TEMPLATES[lang];
+  if (langTemplates && langTemplates[problemTitle]) {
+    return langTemplates[problemTitle];
+  }
+  
+  if (lang === 'javascript') return defaultJsCode;
+  
+  const functionName = problemTitle.replace(/\s+/g, '');
+  const camelName = functionName.charAt(0).toLowerCase() + functionName.slice(1);
+  
+  if (lang === 'python') {
+    return `def ${camelName}():\n    # Write Python code here\n    pass`;
+  }
+  if (lang === 'cpp') {
+    return `class Solution {\npublic:\n    void ${camelName}() {\n        // Write C++ code here\n    }\n};`;
+  }
+  if (lang === 'java') {
+    return `class Solution {\n    public void ${camelName}() {\n        // Write Java code here\n    }\n}`;
+  }
+  return defaultJsCode;
+};
+
 export default function CodingAssessmentPage() {
   const { problemId } = useParams();
   const [searchParams] = useSearchParams();
@@ -65,11 +115,12 @@ export default function CodingAssessmentPage() {
       const res = await api.get(`/problems/${problemId}`);
       setSelectedProblem(res.data);
       
-      // Load code from cache or starter template
-      if (codesCache[problemId]) {
-        setCode(codesCache[problemId]);
+      // Load code from cache or starter template (per language)
+      const cacheKey = `${problemId}_${language}`;
+      if (codesCache[cacheKey]) {
+        setCode(codesCache[cacheKey]);
       } else {
-        setCode(res.data.starterCode);
+        setCode(getStarterCode(res.data.title, language, res.data.starterCode));
       }
       
       // Load submissions for this problem
@@ -99,6 +150,7 @@ export default function CodingAssessmentPage() {
     fetchSelectorProblems();
   }, [contestId]);
 
+  // Re-run active problem details fetch if problemId changes
   useEffect(() => {
     fetchActiveProblem();
   }, [problemId]);
@@ -132,10 +184,28 @@ export default function CodingAssessmentPage() {
   // Handle problem change
   const handleProblemChange = (newProblemId) => {
     if (selectedProblem) {
-      setCodesCache(prev => ({ ...prev, [selectedProblem.id]: code }));
+      const cacheKey = `${selectedProblem.id}_${language}`;
+      setCodesCache(prev => ({ ...prev, [cacheKey]: code }));
     }
     const query = contestId ? `?contestId=${contestId}` : '';
     navigate(`/coding/solve/${newProblemId}${query}`);
+  };
+
+  // Handle language selection change
+  const handleLanguageChange = (newLang) => {
+    if (selectedProblem) {
+      const cacheKey = `${selectedProblem.id}_${language}`;
+      setCodesCache(prev => ({ ...prev, [cacheKey]: code }));
+      
+      setLanguage(newLang);
+      const newCacheKey = `${selectedProblem.id}_${newLang}`;
+      
+      if (codesCache[newCacheKey]) {
+        setCode(codesCache[newCacheKey]);
+      } else {
+        setCode(getStarterCode(selectedProblem.title, newLang, selectedProblem.starterCode));
+      }
+    }
   };
 
   // Toggle problem bookmark directly from workspace
@@ -155,10 +225,12 @@ export default function CodingAssessmentPage() {
   // Reset to starter code
   const handleResetCode = () => {
     if (selectedProblem && confirm('Are you sure you want to reset your code to the default template? This will discard your current draft.')) {
-      setCode(selectedProblem.starterCode);
+      const defaultTemplate = getStarterCode(selectedProblem.title, language, selectedProblem.starterCode);
+      setCode(defaultTemplate);
+      const cacheKey = `${selectedProblem.id}_${language}`;
       setCodesCache(prev => {
         const copy = { ...prev };
-        delete copy[selectedProblem.id];
+        delete copy[cacheKey];
         return copy;
       });
     }
@@ -294,11 +366,13 @@ export default function CodingAssessmentPage() {
               <select
                 id="language-select"
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-violet-500/50 appearance-none pr-10 cursor-not-allowed"
-                disabled
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className="bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-violet-500/50 appearance-none pr-10 cursor-pointer"
               >
                 <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="cpp">C++</option>
+                <option value="java">Java</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-500">
                 <ChevronRight className="w-4 h-4 rotate-90" />

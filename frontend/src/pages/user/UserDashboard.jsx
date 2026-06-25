@@ -41,20 +41,18 @@ export default function UserDashboard() {
   return (
     <UserLayout>
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Greeting */}
-        <div className="flex items-start justify-between">
+        {/* Dashboard Title & Actions */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold font-display text-white">
-              Welcome back, {user?.name?.split(' ')[0]} 👋
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">Track your progress and keep preparing for your dream role.</p>
+            <h1 className="text-xl font-bold font-display text-white">Preparation Overview</h1>
+            <p className="text-slate-500 text-xs mt-0.5">Track your stats, review analytics, and take mock interviews.</p>
           </div>
           <Link
             to="/interview/setup"
             id="dashboard-start-interview"
-            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-600 to-blue-600 rounded-xl text-white text-xs font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-violet-900/10"
           >
-            <Play className="w-4 h-4" />
+            <Play className="w-3.5 h-3.5 fill-white" />
             New Interview
           </Link>
         </div>
