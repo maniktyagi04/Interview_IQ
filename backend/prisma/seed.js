@@ -314,7 +314,12 @@ async function main() {
       starterCode: 'function twoSum(nums, target) {\n  // Write your code here\n}',
       sampleInput: '[2, 7, 11, 15], 9',
       sampleOutput: '[0, 1]',
-      tags: ['Array', 'Hash Table']
+      tags: ['Array', 'Hash Table'],
+      testCases: [
+        { input: '[2, 7, 11, 15], 9', expectedOutput: '[0, 1]', isHidden: false },
+        { input: '[3, 2, 4], 6', expectedOutput: '[1, 2]', isHidden: false },
+        { input: '[3, 3], 6', expectedOutput: '[0, 1]', isHidden: true }
+      ]
     },
     {
       title: 'Reverse String',
@@ -323,7 +328,11 @@ async function main() {
       starterCode: 'function reverseString(s) {\n  // Write your code here\n  return s;\n}',
       sampleInput: '["h","e","l","l","o"]',
       sampleOutput: '["o","l","l","e","h"]',
-      tags: ['String', 'Two Pointers']
+      tags: ['String', 'Two Pointers'],
+      testCases: [
+        { input: '["h","e","l","l","o"]', expectedOutput: '["o","l","l","e","h"]', isHidden: false },
+        { input: '["H","a","n","n","a","h"]', expectedOutput: '["h","a","n","n","a","H"]', isHidden: true }
+      ]
     },
     {
       title: 'Palindrome Number',
@@ -332,7 +341,12 @@ async function main() {
       starterCode: 'function isPalindrome(x) {\n  // Write your code here\n}',
       sampleInput: '121',
       sampleOutput: 'true',
-      tags: ['Math']
+      tags: ['Math'],
+      testCases: [
+        { input: '121', expectedOutput: 'true', isHidden: false },
+        { input: '-121', expectedOutput: 'false', isHidden: false },
+        { input: '10', expectedOutput: 'false', isHidden: true }
+      ]
     },
     {
       title: 'Fibonacci Number',
@@ -341,13 +355,25 @@ async function main() {
       starterCode: 'function fib(n) {\n  // Write your code here\n}',
       sampleInput: '4',
       sampleOutput: '3',
-      tags: ['Math', 'Dynamic Programming']
+      tags: ['Math', 'Dynamic Programming'],
+      testCases: [
+        { input: '4', expectedOutput: '3', isHidden: false },
+        { input: '2', expectedOutput: '1', isHidden: false },
+        { input: '0', expectedOutput: '0', isHidden: true },
+        { input: '9', expectedOutput: '34', isHidden: true }
+      ]
     }
   ];
 
   for (const prob of sampleProblems) {
+    const { testCases, ...problemData } = prob;
     await prisma.problem.create({
-      data: prob
+      data: {
+        ...problemData,
+        testCases: {
+          create: testCases
+        }
+      }
     });
   }
   console.log(`Successfully seeded ${sampleProblems.length} coding problems.`);

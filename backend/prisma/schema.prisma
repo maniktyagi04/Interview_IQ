@@ -155,18 +155,32 @@ model Problem {
   sampleInput  String       @db.Text
   sampleOutput String       @db.Text
   tags         String[]
+  testCases    TestCase[]
   submissions  Submission[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 }
 
+model TestCase {
+  id             String   @id @default(uuid())
+  problemId      String
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  input          String   @db.Text
+  expectedOutput String   @db.Text
+  isHidden       Boolean  @default(false)
+}
+
 model Submission {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  problemId   String
-  problem     Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
-  code        String   @db.Text
-  language    String
-  submittedAt DateTime @default(now())
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId     String
+  problem       Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  code          String   @db.Text
+  language      String
+  passedTests   Int      @default(0)
+  totalTests    Int      @default(0)
+  verdict       String   @default("PENDING")
+  executionTime Float?
+  submittedAt   DateTime @default(now())
 }

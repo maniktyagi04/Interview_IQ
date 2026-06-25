@@ -13,13 +13,16 @@ const createSubmission = async (req, res) => {
 
     const problem = await prisma.problem.findUnique({
       where: { id: problemId },
+      include: {
+        testCases: true
+      }
     });
 
     if (!problem) {
       return res.status(404).json({ message: 'Problem not found' });
     }
 
-    // Save submission to database (as required by requirement 8 & 9)
+    // Save submission to database (initial state)
     const submission = await prisma.submission.create({
       data: {
         userId,
@@ -29,21 +32,82 @@ const createSubmission = async (req, res) => {
       },
     });
 
-    // Run the code against test cases
-    let runResult = { 
-      success: false, 
-      status: 'Unsupported Language', 
-      message: 'Only JavaScript is supported currently.' 
+    // Run the code against all test cases
+    let testCasesToRun = problem.testCases;
+    if (!testCasesToRun || testCasesToRun.length === 0) {
+      // Fallback to sample input/output as a single test case if none are present in DB
+      testCasesToRun = [{
+        id: 'sample',
+        input: problem.sampleInput,
+        expectedOutput: problem.sampleOutput,
+        isHidden: false
+      }];
+    }
+
+    const runResult = await codeRunner.runCode(language, code, testCasesToRun);
+
+    // Update submission record with run details
+    const updatedSubmission = await prisma.submission.update({
+      where: { id: submission.id },
+      data: {
+        passedTests: runResult.passedTests,
+        totalTests: runResult.totalTests,
+        verdict: runResult.verdict,
+        executionTime: runResult.executionTime
+      }
+    });
+
+
+    // Map verdicts to legacy display values for frontend console compatibility
+    const statusMap = {
+      'ACCEPTED': 'Accepted',
+      'WRONG_ANSWER': 'Wrong Answer',
+      'COMPILE_ERROR': 'Compilation Error',
+      'RUNTIME_ERROR': 'Runtime Error',
+      'TIME_LIMIT_EXCEEDED': 'Runtime Error',
+      'UNSUPPORTED_LANGUAGE': 'Compilation Error'
     };
 
-    if (language.toLowerCase() === 'javascript') {
-      runResult = codeRunner.runJS(code, problem.sampleInput, problem.sampleOutput);
-    }
+    const firstTestCaseResult = runResult.testCaseResults.length > 0 ? runResult.testCaseResults[0] : null;
+
+    // Return the response, with details on all test cases
+    // We filter hidden test cases so their input, expected output, actual output, and errors are redacted
+    const testCaseResults = runResult.testCaseResults.map(tc => {
+      if (tc.isHidden) {
+        return {
+          id: tc.id,
+          isHidden: true,
+          status: statusMap[tc.status] || tc.status,
+          executionTime: tc.executionTime
+        };
+      } else {
+        return {
+          id: tc.id,
+          isHidden: false,
+          status: statusMap[tc.status] || tc.status,
+          executionTime: tc.executionTime,
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          actualOutput: tc.actualOutput,
+          error: tc.error
+        };
+      }
+    });
+
+    // Legacy result format for console output on the frontend
+    const legacyResult = {
+      success: runResult.success,
+      status: statusMap[runResult.verdict] || 'Runtime Error',
+      expectedOutput: firstTestCaseResult ? firstTestCaseResult.expectedOutput : problem.sampleOutput,
+      actualOutput: firstTestCaseResult ? firstTestCaseResult.actualOutput : null,
+      message: runResult.message || (firstTestCaseResult ? firstTestCaseResult.error : null)
+    };
 
     res.status(201).json({
       message: 'Submission created successfully',
-      submission,
-      result: runResult,
+      submission: updatedSubmission,
+      result: legacyResult,
+      results: testCaseResults
     });
   } catch (error) {
     console.error('Create Submission Error:', error);
